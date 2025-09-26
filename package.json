@@ -1,0 +1,25 @@
+{
+  "name": "sslv-scraper",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "devDependencies": {
+    "@types/node": "^24.0.10",
+    "@types/nodemailer": "^7.0.1",
+    "playwright": "^1.53.2",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.8.3",
+    "xlsx": "^0.18.5"
+  },
+  "dependencies": {
+    "dotenv": "^17.2.2",
+    "exceljs": "^4.4.0",
+    "nodemailer": "^7.0.6"
+  }
+}
