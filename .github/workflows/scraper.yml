@@ -2,7 +2,7 @@ name: Land Scraper Daily
 
 on:
   schedule:
-    - cron: "0 0 * * *" # Run daily at midnight UTC
+    - cron: "*/2 * * * *" # Run daily at midnight UTC
   workflow_dispatch: # Allow manual triggers
   push:
     branches: [main]
@@ -35,9 +35,9 @@ jobs:
       - name: Run scraper
         run: npx ts-node src/scrapeLands.ts
         env:
-          EMAIL_USER: ${{ secrets.EMAIL_USER }}
-          EMAIL_PASS: ${{ secrets.EMAIL_PASS }}
-          RECIPIENT_EMAIL: ${{ secrets.RECIPIENT_EMAIL }}
+          EMAIL_USER_LAND: ${{ secrets.EMAIL_USER_LAND }}
+          EMAIL_PASS_LAND: ${{ secrets.EMAIL_PASS_LAND }}
+          RECIPIENT_EMAIL_LAND: ${{ secrets.RECIPIENT_EMAIL_LAND }}
 
       - name: Commit and push if changes
         run: |
