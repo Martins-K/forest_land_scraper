@@ -1,0 +1,91 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      - name: Create landing page
+        run: |
+          mkdir -p public
+          cat > public/index.html << 'EOF'
+          <!DOCTYPE html>
+          <html lang="en">
+          <head>
+              <meta charset="UTF-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1.0">
+              <title>Land Scraper Data</title>
+              <style>
+                  body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+                  .header { background: #f5f5f5; padding: 20px; border-radius: 5px; margin-bottom: 20px; }
+                  .download-btn { background: #007acc; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block; }
+                  .info { background: #e7f3ff; padding: 15px; border-radius: 5px; margin: 20px 0; }
+              </style>
+          </head>
+          <body>
+              <div class="header">
+                  <h1>🏞️ Land Scraper Data</h1>
+                  <p>Latest scraped land listings from ss.com</p>
+              </div>
+              
+              <div class="info">
+                  <p><strong>Last updated:</strong> <span id="lastUpdated">Loading...</span></p>
+                  <p>This data is updated automatically every 24 hours using GitHub Actions.</p>
+              </div>
+              
+              <h2>Download Data</h2>
+              <a href="lands-scraped.xlsx" class="download-btn">Download Excel File</a>
+              
+              <h2>About</h2>
+              <p>This project scrapes land listings from ss.com across all regions of Latvia and compiles them into an Excel file.</p>
+              
+              <script>
+                  // Display last commit time as last updated
+                  fetch('https://api.github.com/repos/${{ github.repository }}/commits?path=lands-scraped.xlsx&per_page=1')
+                      .then(response => response.json())
+                      .then(commits => {
+                          if (commits.length > 0) {
+                              const date = new Date(commits[0].commit.committer.date);
+                              document.getElementById('lastUpdated').textContent = date.toLocaleString();
+                          }
+                      });
+              </script>
+          </body>
+          </html>
+          EOF
+
+          # Copy the Excel file to public directory if it exists
+          if [ -f "lands-scraped.xlsx" ]; then
+            cp lands-scraped.xlsx public/
+          fi
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: "./public"
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

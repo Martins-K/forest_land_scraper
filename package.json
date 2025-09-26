@@ -3,7 +3,9 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build": "tsc",
+    "start": "node dist/scrapeLands.js",
+    "scrape": "ts-node src/scrapeLands.ts"
   },
   "keywords": [],
   "author": "",
@@ -23,3 +25,4 @@
     "nodemailer": "^7.0.6"
   }
 }
+

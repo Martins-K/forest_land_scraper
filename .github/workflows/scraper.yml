@@ -1,0 +1,50 @@
+name: Land Scraper Daily
+
+on:
+  schedule:
+    - cron: "*/2 * * * *" # Run daily at midnight UTC
+  workflow_dispatch: # Allow manual triggers
+  push:
+    branches: [main]
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Install Playwright browsers
+        run: npx playwright install chromium
+
+      - name: Run scraper
+        run: npx ts-node src/scrapeLands.ts
+        env:
+          EMAIL_USER: ${{ secrets.EMAIL_USER }}
+          EMAIL_PASS: ${{ secrets.EMAIL_PASS }}
+          RECIPIENT_EMAIL: ${{ secrets.RECIPIENT_EMAIL }}
+
+      - name: Upload Excel file as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: lands-data
+          path: lands-scraped.xlsx
+          retention-days: 30
+
+      - name: Commit and push if changes
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add lands-scraped.xlsx
+          git diff --staged --quiet || git commit -m "Update lands data - $(date)"
+          git push

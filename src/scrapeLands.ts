@@ -476,8 +476,14 @@ async function updateExcel(fileName: string, freshItems: LandData[]): Promise<nu
   return addedCount;
 }
 
-// Run
-run().catch((err) => {
-  console.error("Script failed:", err);
-  process.exit(1);
-});
+if (process.env.GITHUB_ACTIONS) {
+  // Running in GitHub Actions - just run once
+  run().catch((error) => {
+    console.error("Scraper failed:", error);
+    process.exit(1);
+  });
+} else {
+  // Running locally - use interval
+  run();
+  // setInterval(run, 24 * 60 * 60 * 1000);
+}
