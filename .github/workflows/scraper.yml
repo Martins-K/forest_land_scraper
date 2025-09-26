@@ -2,7 +2,7 @@ name: Land Scraper Daily
 
 on:
   schedule:
-    - cron: "*/2 * * * *" # Run daily at midnight UTC
+    - cron: "*/10 * * * *" # Run daily at midnight UTC
   workflow_dispatch: # Allow manual triggers
   push:
     branches: [main]
