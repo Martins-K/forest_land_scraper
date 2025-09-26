@@ -7,6 +7,9 @@ on:
   push:
     branches: [main]
 
+permissions:
+  contents: write # Add this line to allow pushing changes
+
 jobs:
   scrape:
     runs-on: ubuntu-latest
