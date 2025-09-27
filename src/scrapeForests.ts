@@ -63,7 +63,8 @@ async function run() {
 
   // Cutoff = now minus 24h
   const now = new Date();
-  const cutoffDate = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+  // Scraping only items newer than 23 hours to avoid going through too many pages
+  const cutoffDate = new Date(now.getTime() - 23 * 60 * 60 * 1000);
   console.log(`Scraping only items newer than: ${cutoffDate.toISOString()}`);
 
   const urls = [
