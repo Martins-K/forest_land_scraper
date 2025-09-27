@@ -15,12 +15,24 @@ function parseDate(dateStr: string): Date {
   return new Date(year, month - 1, day, hours, minutes);
 }
 
+// Helper function to determine cutoff hours based on day of week
+function getCutoffHours(): number {
+  const now = new Date();
+  const dayOfWeek = now.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+
+  // If it's Monday (day 1), use 73 hours (3 days) to cover the weekend
+  // For other weekdays (Tuesday-Friday), use 25 hours (1 day + 1 hour buffer)
+  // For weekends, use 25 hours as well (though the cron only runs Mon-Fri)
+  return dayOfWeek === 1 ? 73 : 25;
+}
+
 // Normalise various Excel cell value shapes into a plain string
 function cellValueToString(v: any): string {
   if (v === null || v === undefined) return "";
   if (typeof v === "string") return v.trim();
   if (typeof v === "number") return String(v);
   if (typeof v === "boolean") return v ? "true" : "false";
+  if (v instanceof Date) return v.toISOString();
   if (typeof v === "object") {
     // Hyperlink objects: { text: '...', hyperlink: 'https://...' }
     if ("hyperlink" in v && v.hyperlink) return String(v.hyperlink).trim();
@@ -50,6 +62,7 @@ interface ForestData {
   areaText?: string;
   cadastreText?: string;
   date: string;
+  parsedDate?: Date; // Add parsed date for Excel formatting
 }
 
 const FILE_NAME = "forests-scraped.xlsx";
@@ -61,11 +74,11 @@ async function run() {
   const data: ForestData[] = [];
   const scrapedLinksInThisRun = new Set<string>();
 
-  // Cutoff = now minus 24h
   const now = new Date();
-  // Scraping only items newer than 23 hours to avoid going through too many pages
-  const cutoffDate = new Date(now.getTime() - 23 * 60 * 60 * 1000);
-  console.log(`Scraping only items newer than: ${cutoffDate.toISOString()}`);
+  const cutoffHours = getCutoffHours();
+  // Scraping only items newer than cutoff hours
+  const cutoffDate = new Date(now.getTime() - cutoffHours * 60 * 60 * 1000);
+  console.log(`Scraping only items newer than: ${cutoffDate.toISOString()} (${cutoffHours} hours)`);
 
   const urls = [
     "https://www.ss.com/lv/real-estate/wood/aizkraukle-and-reg/sell/",
@@ -190,7 +203,7 @@ async function run() {
 
         // Stop if ad is older than cutoff
         if (currentItemDate < cutoffDate) {
-          console.log(`Found ad older than 24h (${dateStr}). Stopping this URL.`);
+          console.log(`Found ad older than ${cutoffHours}h (${dateStr}). Stopping this URL.`);
           shouldStopThisUrl = true;
           await page.goBack();
           break;
@@ -203,6 +216,7 @@ async function run() {
           areaText,
           cadastreText,
           date: dateStr,
+          parsedDate: currentItemDate, // Store parsed date
         });
 
         console.log(`Scraped item dated: ${dateStr} | ${link}`);
@@ -250,20 +264,38 @@ async function run() {
       newSheet.eachRow((row: ExcelJS.Row, rowNumber: number) => {
         if (rowNumber > 1) {
           // Skip header
+          const dateValue = row.getCell(6).value;
+          let dateStr = "";
+
+          // Handle different date value types
+          if (dateValue instanceof Date) {
+            dateStr = dateValue
+              .toLocaleDateString("lv-LV", {
+                day: "2-digit",
+                month: "2-digit",
+                year: "numeric",
+                hour: "2-digit",
+                minute: "2-digit",
+              })
+              .replace(",", "");
+          } else {
+            dateStr = cellValueToString(dateValue);
+          }
+
           actuallyNewItems.push({
             link: cellValueToString(row.getCell(1).value),
             price: cellValueToString(row.getCell(2).value),
             districtText: cellValueToString(row.getCell(3).value),
             areaText: cellValueToString(row.getCell(4).value),
             cadastreText: cellValueToString(row.getCell(5).value),
-            date: cellValueToString(row.getCell(6).value),
+            date: dateStr,
           });
         }
       });
     }
 
     console.log(`Sending email with ${actuallyNewItems.length} actually new items`);
-    await sendEmail(actuallyNewItems, FILE_NAME);
+    await sendEmail(actuallyNewItems, FILE_NAME, cutoffHours);
   }
 }
 
@@ -304,6 +336,9 @@ async function updateExcel(fileName: string, freshItems: ForestData[]): Promise<
     alignment: { vertical: "middle" as const, horizontal: "left" as const },
   };
 
+  // Define date format for Excel
+  const dateFormat = "dd.mm.yyyy hh:mm";
+
   // Set column widths
   const columnWidths = [
     { width: 70 }, // link
@@ -311,7 +346,7 @@ async function updateExcel(fileName: string, freshItems: ForestData[]): Promise<
     { width: 13 }, // districtText
     { width: 8 }, // areaText
     { width: 12 }, // cadastreText
-    { width: 13 }, // date
+    { width: 17 }, // date (increased width for date/time)
   ];
 
   // Ensure header row exists on "Previously added" sheet with formatting
@@ -333,6 +368,9 @@ async function updateExcel(fileName: string, freshItems: ForestData[]): Promise<
     columnWidths.forEach((col, index) => {
       sheet.getColumn(index + 1).width = col.width;
     });
+
+    // Set date column format
+    sheet.getColumn(6).numFmt = dateFormat;
 
     // Freeze header row
     sheet.views = [
@@ -356,7 +394,19 @@ async function updateExcel(fileName: string, freshItems: ForestData[]): Promise<
       if (linkStr) {
         knownLinks.add(linkStr);
         // Add row to prevSheet, ensuring all cells are handled
-        const rowData = headers.map((_, index) => row.getCell(index + 1).value);
+        const rowData = headers.map((_, index) => {
+          const cellValue = row.getCell(index + 1).value;
+          // For date column (index 5), try to parse if it's a string
+          if (index === 5 && typeof cellValue === "string") {
+            try {
+              return parseDate(cellValue);
+            } catch {
+              return cellValue;
+            }
+          }
+          return cellValue;
+        });
+
         const newRow = prevSheet.addRow(rowData);
 
         // Apply data style to the new row
@@ -368,6 +418,11 @@ async function updateExcel(fileName: string, freshItems: ForestData[]): Promise<
           if (colNumber === 1 && linkStr) {
             cell.value = { text: linkStr, hyperlink: linkStr };
             cell.font = { ...dataStyle.font, color: { argb: "FF0000FF" }, underline: true };
+          }
+
+          // Format date column (column 6)
+          if (colNumber === 6) {
+            cell.numFmt = dateFormat;
           }
         });
       }
@@ -393,6 +448,19 @@ async function updateExcel(fileName: string, freshItems: ForestData[]): Promise<
           cell.font = { ...dataStyle.font, color: { argb: "FF0000FF" }, underline: true };
         }
       }
+
+      // Format date column (column 6)
+      if (colNumber === 6) {
+        cell.numFmt = dateFormat;
+        // If the date is stored as string, convert it to Date object
+        if (typeof cell.value === "string") {
+          try {
+            cell.value = parseDate(cell.value);
+          } catch {
+            // Keep as string if parsing fails
+          }
+        }
+      }
     });
 
     const linkStr = cellValueToString(row.getCell(1).value);
@@ -406,6 +474,9 @@ async function updateExcel(fileName: string, freshItems: ForestData[]): Promise<
   columnWidths.forEach((col, index) => {
     newSheet.getColumn(index + 1).width = col.width;
   });
+
+  // Set date column format for New sheet
+  newSheet.getColumn(6).numFmt = dateFormat;
 
   // Add headers to New sheet with formatting
   newSheet.addRow(headers);
@@ -434,13 +505,15 @@ async function updateExcel(fileName: string, freshItems: ForestData[]): Promise<
     if (!item.link || knownLinks.has(item.link)) {
       continue;
     }
+
+    // Use the parsed Date object instead of the string for the date column
     const newRow = newSheet.addRow([
       item.link,
       item.price,
       item.districtText,
       item.areaText,
       item.cadastreText,
-      item.date,
+      item.parsedDate || item.date, // Use parsedDate if available, fallback to string
     ]);
 
     // Apply data style to the new row
@@ -452,6 +525,22 @@ async function updateExcel(fileName: string, freshItems: ForestData[]): Promise<
       if (colNumber === 1) {
         cell.value = { text: item.link, hyperlink: item.link };
         cell.font = { ...dataStyle.font, color: { argb: "FF0000FF" }, underline: true };
+      }
+
+      // Format date column (column 6) - Set the actual Date object
+      if (colNumber === 6) {
+        // Ensure we have a Date object
+        if (item.parsedDate) {
+          cell.value = item.parsedDate;
+        } else if (typeof item.date === "string") {
+          // Try to parse if we only have the string
+          try {
+            cell.value = parseDate(item.date);
+          } catch {
+            cell.value = item.date; // Fallback to string
+          }
+        }
+        cell.numFmt = dateFormat; // Apply the date format
       }
     });
 
@@ -477,8 +566,14 @@ async function updateExcel(fileName: string, freshItems: ForestData[]): Promise<
   return addedCount;
 }
 
-// Run
-run().catch((err) => {
-  console.error("Script failed:", err);
-  process.exit(1);
-});
+if (process.env.GITHUB_ACTIONS) {
+  // Running in GitHub Actions - just run once
+  run().catch((error) => {
+    console.error("Scraper failed:", error);
+    process.exit(1);
+  });
+} else {
+  // Running locally - use interval
+  run();
+  // setInterval(run, 24 * 60 * 60 * 1000);
+}

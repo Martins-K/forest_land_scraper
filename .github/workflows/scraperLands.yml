@@ -2,9 +2,8 @@ name: Land Scraper Daily
 
 on:
   schedule:
-    - cron: "45 7 * * 6" # 10:45 AM Riga time on Saturdays
-      # - cron: "0 12 * * 1-5" # 15:00 PM Riga time, Monday-Friday
-  workflow_dispatch: # Allow manual triggers
+    - cron: "0 12 * * 1-5" # 12:00 UTC = 15:00 Riga (summer)
+  workflow_dispatch:
 
 permissions:
   contents: write # Add this line to allow pushing changes

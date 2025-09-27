@@ -4,7 +4,11 @@ dotenv.config();
 import nodemailer from "nodemailer";
 import { LandForestData } from "./types";
 
-export async function sendEmail(newItems: LandForestData[], fileName: string): Promise<void> {
+export async function sendEmail(
+  newItems: LandForestData[],
+  fileName: string,
+  cutoffHours: number = 25
+): Promise<void> {
   try {
     // Create transporter (configure with your email service)
     const transporter = nodemailer.createTransport({
@@ -62,13 +66,15 @@ export async function sendEmail(newItems: LandForestData[], fileName: string): P
 <body>
     <div style="font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto;">
         <h2 style="color: #333; border-bottom: 2px solid #0066cc; padding-bottom: 10px;">
-            🏞️ Forest Scraper Report
+            🌲 Forest Scraper Report
         </h2>
         
         <div style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin-bottom: 20px;">
             <p style="margin: 0; color: #555;">
                 <strong>Scraping completed on:</strong> ${new Date().toLocaleString()}<br>
-                <strong>New forest listings found in the past 24 hours:</strong> ${newItems.length}
+                <strong>New forest listings found in the past ${cutoffHours} hours:</strong> ${
+      newItems.length
+    }
             </p>
         </div>
 
@@ -79,6 +85,11 @@ export async function sendEmail(newItems: LandForestData[], fileName: string): P
             <p style="margin: 0; color: #555;">
                 <strong>Note:</strong> The complete dataset including previous listings is attached as an Excel file.
                 This email contains only the new items discovered in the latest run.
+                ${
+                  cutoffHours === 73
+                    ? "<br><strong>Monday run:</strong> Includes listings from the weekend (past 72 hours)."
+                    : ""
+                }
             </p>
         </div>
 
@@ -94,7 +105,7 @@ export async function sendEmail(newItems: LandForestData[], fileName: string): P
     `;
 
     const mailOptions = {
-      from: process.env.EMAIL_USER_FOREST,
+      from: `Forest Scraping Service <${process.env.EMAIL_USER_FOREST}>`,
       to: process.env.RECIPIENT_EMAIL_FOREST,
       cc: process.env.CC_EMAIL_FOREST || "",
       bcc: process.env.BCC_EMAIL_FOREST || "",
