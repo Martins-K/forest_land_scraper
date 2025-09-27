@@ -2,7 +2,7 @@ name: Land Scraper Daily
 
 on:
   schedule:
-    - cron: "0 7 * * 0" # 10:00 AM Riga time on Sundays
+    - cron: "25 7 * * 0" # 10:25 AM Riga time on Saturdays
       # - cron: "0 12 * * 1-5" # 15:00 PM Riga time, Monday-Friday
   workflow_dispatch: # Allow manual triggers
 
