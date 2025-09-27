@@ -2,7 +2,7 @@ name: Forest Scraper Daily
 
 on:
   schedule:
-    - cron: "0 7 * * 0" # 7:00 AM Riga time on Sundays
+    - cron: "0 7 * * 0" # 10:00 AM Riga time on Sundays
       # - cron: "0 12 * * 1-5" # 15:00 PM Riga time, Monday-Friday
   workflow_dispatch: # Allow manual triggers
 
