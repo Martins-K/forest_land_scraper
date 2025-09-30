@@ -71,7 +71,16 @@ export async function sendEmail(
         
         <div style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin-bottom: 20px;">
             <p style="margin: 0; color: #555;">
-                <strong>Scraping completed on:</strong> ${new Date().toLocaleString()}<br>
+                <strong>Scraping completed on:</strong> ${new Date().toLocaleString("en-US", {
+                  timeZone: "Europe/Riga",
+                  year: "numeric",
+                  month: "2-digit",
+                  day: "2-digit",
+                  hour: "2-digit",
+                  minute: "2-digit",
+                  second: "2-digit",
+                  hour12: true,
+                })}<br>
                 <strong>New forest listings found in the past ${cutoffHours} hours:</strong> ${
       newItems.length
     }
@@ -83,7 +92,8 @@ export async function sendEmail(
 
         <div style="margin-top: 30px; padding: 15px; background-color: #f0f8ff; border-radius: 5px;">
             <p style="margin: 0; color: #555;">
-                <strong>Note:</strong> The complete dataset including previous listings is attached as an Excel file.
+                <strong>Note:</strong> The complete dataset including previous listings (scraped on 9/26/2025, 12:27:42 PM) is attached as an Excel file.
+                Some previously found listings may no longer be available (removed in the portal).
                 This email contains only the new items discovered in the latest run.
                 ${
                   cutoffHours === 73
