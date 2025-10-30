@@ -49,7 +49,10 @@ jobs:
             echo "✅ No changes to commit"
           else
             git commit -m "Update lands data - $(date +'%Y-%m-%d %H:%M')"
+
+            # Ensure remote changes are pulled before pushing
             git fetch origin main
-            git rebase origin/main
+            git rebase origin/main || (echo "⚠️ Rebase conflict — keeping local version" && git rebase --abort && git pull --strategy=ours origin main)
+
             git push origin main
           fi
