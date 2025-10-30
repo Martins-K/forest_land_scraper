@@ -1,51 +1,55 @@
 name: Forest Scraper Daily
-'on':
+
+on:
   schedule:
-    - cron: 0 12 * * 1-5
-  workflow_dispatch: null
+    - cron: "0 12 * * 1-5"
+  workflow_dispatch:
+
 permissions:
   contents: write
+
 jobs:
   scrape:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          token: '${{ secrets.GITHUB_TOKEN }}'
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0 # required for rebase
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
-          cache: npm
+          node-version: "18"
+          cache: "npm"
+
       - name: Install dependencies
         run: npm install
+
       - name: Install Playwright browsers
         run: npx playwright install chromium
+
       - name: Run scraper
         run: npx ts-node src/scrapeForests.ts
         env:
-          EMAIL_USER_FOREST: '${{ secrets.EMAIL_USER_FOREST }}'
-          EMAIL_PASS_FOREST: '${{ secrets.EMAIL_PASS_FOREST }}'
-          RECIPIENT_EMAIL_FOREST: '${{ secrets.RECIPIENT_EMAIL_FOREST }}'
-          BCC_EMAIL_FOREST: '${{ secrets.BCC_EMAIL_FOREST }}'
+          EMAIL_USER_FOREST: ${{ secrets.EMAIL_USER_FOREST }}
+          EMAIL_PASS_FOREST: ${{ secrets.EMAIL_PASS_FOREST }}
+          RECIPIENT_EMAIL_FOREST: ${{ secrets.RECIPIENT_EMAIL_FOREST }}
+          BCC_EMAIL_FOREST: ${{ secrets.BCC_EMAIL_FOREST }}
+
       - name: Commit and push if changes
-  run: >
-    git config --local user.email "action@github.com"
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add .
 
-    git config --local user.name "GitHub Action"
-
-    git add .
-
-    git commit -m "Update lands data - $(date +'%Y-%m-%d %H:%M')" || echo "No
-    changes to commit"
-
-
-    # Fetch and rebase before pushing
-
-    git fetch origin main
-
-    git rebase origin/main
-
-
-    git push origin main
+          if git diff --staged --quiet; then
+            echo "✅ No changes to commit"
+          else
+            git commit -m "Update forest data - $(date +'%Y-%m-%d %H:%M')"
+            git fetch origin main
+            git rebase origin/main
+            git push origin main
+          fi
